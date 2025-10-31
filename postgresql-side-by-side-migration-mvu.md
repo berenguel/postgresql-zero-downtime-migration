@@ -6,6 +6,7 @@ This guide provides a structured, **side-by-side migration path** to drastically
 
 
 ## Pre Requisites
+These initial steps prepare both your old (Source) and new (Target) PostgreSQL servers for the logical replication process.
 
 ### Step 0 - Role Privileges (Source & Target Azure Database for PostgreSQL servers)
 
@@ -13,10 +14,12 @@ This guide provides a structured, **side-by-side migration path** to drastically
 ALTER ROLE demo WITH REPLICATION;
 GRANT azure_pg_admin TO demo;
 ```
+> The user role designated for the migration must have the necessary permissions to manage replication and slots. The "demo" user was created at server creation. In case you want to create a dedicated replication user, find my guide [here](https://github.com/berenguel/bi-directional-replication-in-Flexible-Server/blob/main/configuring_replication_user.sql)
 
 
-### Step 1 - Check Prerequisites for Logical Replication (Source & Target Azure Database for PostgreSQL servers)
-Enable the below server parameters - note that that this is the minimal recommendation
+### Step 1 - Check Prerequisites for Logical Replication (Source & Target servers)
+Set these server parameters to at least the minimum recommended values shown below to enable and support the features required for logical replication.
+
 ```sql
 wal_level=logical
 max_worker_processes=16
@@ -25,26 +28,34 @@ max_wal_senders=10
 track_commit_timestamp=on
 ```
 
-### Step 2 - Check that all tables are ready for logical replication
+### Step 2 - Ensure tables are ready for logical replication
+
+For PostgreSQL to accurately track row-level changes (updates, deletes), every table you plan to replicate must have a unique identifier.
 
 Tables *must have* one of the following:
 - a Primary Key, or
 - a unique index, or
-- Replica identity full
+- Replica identity full (less efficient)
 
-## Let's start the Logical Replication & Data Copy
+## Migration
+
+This section details the core process of moving data and establishing synchronization between the two environments.
 
 ### Step 3 - Set Up Logical Replication (Source Server)
 
+A Publication defines the logical grouping of tables on the source server that will be replicated
+
 ```sql
 create publication logical_mig01;
-
-alter publication logical_mig01 add table conditions;
+alter publication logical_mig01 add table dummy_test;
 
 SELECT pg_create_logical_replication_slot('logical_mig01', 'pgoutput');
 ```
+> The Safety Net: The slot created in step 3 immediately begins tracking all changes in the WAL. This guarantees that all transactions occurring from this moment forward are recorded and preserved, preventing data loss during the initial dump/restore process
 
-### Step 4 - Generate Dump of Schema + Data (recommended: Azure VM)
+### Step 4 - Generate Schema + Initial Data Dump (Recommended: Azure VM)
+
+Perform the dump after creating the replication slot to capture a static starting point. Using an Azure VM is recommended for optimal network performance.
 
 ```
 pg_dump -U demo -W \
@@ -57,13 +68,19 @@ pg_dump -U demo -W \
 
 
 ### Step 5 - Restore the data dump into the Target (recommended: Azure VM)
+
+This populates the target server with the initial dataset.
 ```
 pg_restore -U demo -W  \
 -h pg17blogtest.postgres.database.azure.com -p 5432 --no-owner \
 -Fc -v -d postgres dump.bak --no-acl
 ```
 
+> Catch-Up Mechanism: While the restoration is ongoing, new transactions on the source are safely recorded by the replication slot. It is critical to have sufficient storage on the source to hold the WAL files during this initial period until replication is fully active.
+
 ### Step 6 - Create the target server as subscriber & Advance Replication Origin
+
+This step connects the target (subscriber) to the source and manually tells the target where in the WAL log stream to begin reading changes, skipping the data already restored.
 
 ```sql
 -- On the target
@@ -92,15 +109,39 @@ SELECT slot_name, restart_lsn FROM pg_replication_slots WHERE slot_name = 'logic
 SELECT pg_replication_origin_advance('pg_25910', '20/9300A690');
 ```
 
-Step 7 - Enable the target server as a subscriver of source server
+> Manual Synchronization: By advancing the origin, you instruct the subscriber to ignore all WAL records before the specified restart_lsn, effectively aligning the subscription with the exact point in time when the initial dump was taken.
+
+Step 7 - Enable the target server as a subscriber of the source server
+
+With the target server populated and the replication origin advanced, you can start the synchronization.
+
 ```sql
 ALTER SUBSCRIPTION logical_sub01 ENABLE;
 ```
-## Let's test that the replication works
-Step 8 - Test Replication 
---@Source Server
-```sql
-insert into dummy_test values (1, 'London', 'Test', 66, 77, now());
-select * from dummy_test;
+> Result: The target server now starts consuming the WAL entries from the source, rapidly closing the gap on all transactions that occurred during the dump and restore process.
 
+## Post-Migration & Cutover
+
+Step 8 - Test Replication works
+Confirm that the synchronization is working by inserting a record on the source and immediately verifying its presence on the target.
 ```
+--@Source Server
+insert into dummy_test values (1, 'London', 'Test', 66, 77, now());
+```
+```
+--@Target Server
+select * from dummy_test;
+```
+
+Step 9 - The Cutover
+Once both databases are synchronized (replication lag stabilizes near zero), you are ready for the minimal downtime cutover.
+
+- 9.1 Stop application traffic to the source database.
+
+- 9.2 Wait for the target database to confirm zero replication lag.
+
+- 9.3 Disable the subscription (ALTER SUBSCRIPTION logical_sub01 DISABLE;).
+
+- 9.4 Connect the application to the new Azure Database for PostgreSQL instance.
+	> Recommendation: Utilize Virtual Endpoints or a CNAME DNS record for your database connection string. By simply pointing the endpoint/CNAME to the new server, you can switch your application stack without changing hundreds of individual configuration files, making the final cutover near-instantaneous.
+ 
