@@ -1,6 +1,6 @@
-# ⏳ Minimizing Downtime: Azure PostgreSQL Major Version Side-by-Side Upgrade
+# ⏳ Minimizing Downtime: Azure Database for PostgreSQL Major Version Upgrade: Side-by-Side approach
 
-Upgrading the major version of your Azure Database for PostgreSQL instance can sometimes require **unacceptable levels of downtime**.
+Upgrading the major version of your Azure Database for PostgreSQL instance can sometimes require **extended levels of downtime**.
 
 This guide provides a structured, **side-by-side migration path** to drastically reduce service interruption. This method is crucial when architectural constraints—such as extensive replica sets, intricate network configurations, or specific extension requirements—make a standard in-place upgrade unfeasible due to time limitations.
 
@@ -102,4 +102,5 @@ Step 8 - Test Replication
 ```sql
 insert into dummy_test values (1, 'London', 'Test', 66, 77, now());
 select * from dummy_test;
+
 ```
