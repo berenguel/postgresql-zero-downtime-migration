@@ -4,23 +4,24 @@ Modifying the fundamental architecture of your database—such as downsizing har
 
 This guide details a structured, side-by-side migration path to drastically reduce downtime for these critical architectural shifts. This method is crucial when limitations prevent online, in-place modifications, forcing you to provision a new environment to achieve goals such as:
 
-Hardware Resizing: Moving to a smaller/different SKU or a different tier (e.g., from General Purpose to Memory Optimized) which is not supported via simple scaling.
+- Networking Changes: Altering a complex network landscape, like migrating from VNet-injected to Public Access, or changing the VNet itself.
 
-Networking Changes: Altering a complex network landscape, like migrating from VNet-injected to Public Access, or changing the VNet itself.
+- Storage/Platform Switch: Adopting a new platform, region, or underlying storage technology that requires a fresh instance build.
 
-Storage/Platform Switch: Adopting a new platform, region, or underlying storage technology that requires a fresh instance build.
+- Moving to a new tenant
 
 ![Side by Side Migration](Side-by-Side-Migration-general-use-case.jpg)
 
 ## ⚙️ I. Setup and Provisioning
 
-### Step 0 - Provision the New Target Server (New Major Version)
+### Step 0 - Provision the New Target Server
 
-Create a new Azure Database for PostgreSQL Flexible Server instance using your desired target major version (e.g., PostgreSQL 17). Ensure the new server's configuration (SKU, storage size, and location) is suitable for your eventual production load.
+Create a new Azure Database for PostgreSQL instance with your desired new landscape/technology. Ensure the new server's configuration (SKU, storage size, and location) is suitable for your eventual production load.
 
->Key Concept: This action enables the core benefit of a side-by-side migration: running two distinct database versions concurrently. The existing application remains connected to the source environment, minimizing risk and allowing the new target to be fully configured offline.
+>Key Concept: This action enables the core benefit of a side-by-side migration: running two distinct environments concurrently. The existing application remains connected to the source environment, minimizing risk and allowing the new target to be fully configured offline.
 
-### Step 1 - Role Privileges (Source & Target Azure Database for PostgreSQL servers)
+### Step 1 - Role Privileges (Source & Target servers)
+The user role designated for the migration must have the necessary permissions to manage replication and slots.
 
 ```sql
 ALTER ROLE demo WITH REPLICATION;
@@ -71,7 +72,7 @@ Perform the dump after creating the replication slot to capture a static startin
 
 ```
 pg_dump -U demo -W \
--h pg13blogtest.postgres.database.azure.com -p 5432 -Fc -v \
+-h pgprimary6666.postgres.database.azure.com -p 5432 -Fc -v \
 -f dump.bak postgres \
 	-N pg_catalog \
 	-N cron \
@@ -84,7 +85,7 @@ pg_dump -U demo -W \
 This populates the target server with the initial dataset.
 ```
 pg_restore -U demo -W  \
--h pg17blogtest.postgres.database.azure.com -p 5432 --no-owner \
+-h pgprimary6666-1.postgres.database.azure.com -p 5432 --no-owner \
 -Fc -v -d postgres dump.bak --no-acl
 ```
 
@@ -96,7 +97,7 @@ This step connects the target (subscriber) to the source and manually tells the 
 
 ```sql
 -- On the target
-CREATE SUBSCRIPTION logical_sub01 CONNECTION 'host=pg13blogtest.postgres.database.azure.com port=5432 dbname=postgres user=yyyy password=zzzzzzz' PUBLICATION logical_mig01
+CREATE SUBSCRIPTION logical_sub01 CONNECTION 'host=pgprimary6666.postgres.database.azure.com port=5432 dbname=postgres user=yyyy password=zzzzzzz' PUBLICATION logical_mig01
 WITH (
 	copy_data = false,
 	create_slot = false,
