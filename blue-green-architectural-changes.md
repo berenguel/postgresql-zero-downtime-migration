@@ -1,4 +1,4 @@
-# 🎨 Blue/Green Deployment for Architectural Changes: Minimizing downtime: The PITR Approach
+# 🎨 Blue/Green Deployment for Architectural Changes: Minimizing downtime, The PITR Approach
 
 Modifying the fundamental architecture of your database—such as downsizing hardware, changing networking topology, or migrating to a new storage technology—often requires database recreation, which can lead to extended service outages.
 
