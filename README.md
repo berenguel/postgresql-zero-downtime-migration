@@ -6,6 +6,9 @@ Side-by-side approach is the safest and fastest solution for these complex datab
 Use Cases:
 - Major Version Upgrades (MVU): Move from an older to a newer PostgreSQL version (e.g., PG13 to PG16) without a downtime-inducing dump/restore or lengthy in-place upgrade.
 
+  ### Major Version Upgrade
+https://github.com/berenguel/postgresql-zero-downtime-migration/
+
 - Networking & Endpoint Changes: Seamlessly switch to a new VNET, subnet, IP range, or cloud region that would otherwise require service interruption.
 
 - Hardware / Machine Generation: Migrate to a more powerful instance or faster storage (e.g., non-confidential compute to confidential compute) without impacting live traffic.
