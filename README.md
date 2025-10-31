@@ -1,13 +1,10 @@
 # postgresql-zero-downtime-migration
 This is a one stop shop for various strategies to copy data between PostgreSQL instances with near zero downtime.
 
-Side-by-side approach is the safest and fastest solution for these complex database transitions:
+A side-by-side approach is the fastest solution, allowing for minimal downtime, for these complex database transitions:
 
 Use Cases:
 - Major Version Upgrades (MVU): Move from an older to a newer PostgreSQL version (e.g., PG13 to PG16) without a downtime-inducing dump/restore or lengthy in-place upgrade.
-
-  ### Major Version Upgrade
-https://github.com/berenguel/postgresql-zero-downtime-migration/
 
 - Networking & Endpoint Changes: Seamlessly switch to a new VNET, subnet, IP range, or cloud region that would otherwise require service interruption.
 
