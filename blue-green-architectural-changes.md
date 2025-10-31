@@ -52,7 +52,7 @@ SELECT pg_create_logical_replication_slot('logical_mig01', 'pgoutput');
 ```
 > The Safety Net: The slot created in step 4 immediately begins tracking all changes in the WAL. This guarantees that all transactions occurring from this moment forward are recorded and preserved, preventing data loss during the initial dump/restore process
 
-Step 4 - Choose the Restore Point
+### Step 4 - Choose the Restore Point
 Determine the latest possible point in time (PIT) to restore the data from the source server. This Point in Time must be, necessarily, after you created the replication slot in Step 3.
 
 
@@ -97,7 +97,7 @@ SELECT pg_replication_origin_advance('pg_25910', '20/9300A690');
 
 > Manual Synchronization: By advancing the origin, you instruct the subscriber to ignore all WAL records before the specified restart_lsn. This aligns the subscription with the exact point in time when the initial slot was created, effectively forcing the Green environment to catch up on everything that happened since the slot's creation.
 
-Step 7 - Enable the target server as a subscriber of the source server
+### Step 7 - Enable the target server as a subscriber of the source server
 
 With the target server populated and the replication origin advanced, you can start the synchronization.
 
@@ -108,7 +108,7 @@ ALTER SUBSCRIPTION logical_sub01 ENABLE;
 
 ## ✅ III. Post-Migration & Cutover (The Blue/Green Switch)
 
-Step 8 - Test Replication works
+### Step 8 - Test Replication works
 Confirm that the synchronization is working by inserting a record on the source and immediately verifying its presence on the target.
 ```
 --@Source Server
@@ -119,5 +119,15 @@ insert into dummy_test values (1, 'London', 'Test', 66, 77, now());
 select * from dummy_test;
 ```
 
-Step 9 - The Cutover
-Result: The target server now starts consuming the WAL entries from the source, rapidly closing the gap on all transactions that occurred between the slot creation (Step 3) and the completion of the PITR (Step 5).
+### Step 9 - The Cutover
+Once both databases are synchronized (replication lag stabilizes near zero), you are ready for the minimal downtime cutover.
+
+	9.1 Stop application traffic to the source database (Blue).
+
+	9.2 Wait for the target database (Green) to confirm zero replication lag.
+
+	9.3 Disable the subscription (ALTER SUBSCRIPTION logical_sub01 DISABLE;).
+
+	9.4 Connect the application to the new Azure Database for PostgreSQL instance (Green).
+
+> Recommendation: Utilize Virtual Endpoints or a CNAME DNS record for your database connection string. By simply pointing the endpoint/CNAME to the new server, you can switch your application stack without changing hundreds of individual configuration files, making the final cutover near-instantaneous.
