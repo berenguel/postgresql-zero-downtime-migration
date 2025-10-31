@@ -4,7 +4,7 @@ This is a one stop shop for various strategies to copy data between PostgreSQL i
 Side-by-side approach is the safest and fastest solution for these complex database transitions:
 
 Use Cases:
-- Major Version Upgrades: Move from an older to a newer PostgreSQL version (e.g., PG13 to PG16) without a downtime-inducing dump/restore or lengthy in-place upgrade.
+- Major Version Upgrades (MVU): Move from an older to a newer PostgreSQL version (e.g., PG13 to PG16) without a downtime-inducing dump/restore or lengthy in-place upgrade.
 
 - Networking & Endpoint Changes: Seamlessly switch to a new VNET, subnet, IP range, or cloud region that would otherwise require service interruption.
 
