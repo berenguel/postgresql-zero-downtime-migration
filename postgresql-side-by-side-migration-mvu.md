@@ -65,7 +65,7 @@ Perform the dump after creating the replication slot to capture a static startin
 
 ```
 pg_dump -U demo -W \
--h pg13blogtest.postgres.database.azure.com -p 5432 -Fc -v \
+-h pg13demo0000.postgres.database.azure.com -p 5432 -Fc -v \
 -f dump.bak postgres \
 	-N pg_catalog \
 	-N cron \
@@ -78,7 +78,7 @@ pg_dump -U demo -W \
 This populates the target server with the initial dataset.
 ```
 pg_restore -U demo -W  \
--h pg17blogtest.postgres.database.azure.com -p 5432 --no-owner \
+-h pg17demo0000.postgres.database.azure.com -p 5432 --no-owner \
 -Fc -v -d postgres dump.bak --no-acl
 ```
 
@@ -90,7 +90,7 @@ This step connects the target (subscriber) to the source and manually tells the 
 
 ```sql
 -- On the target
-CREATE SUBSCRIPTION logical_sub01 CONNECTION 'host=pg13blogtest.postgres.database.azure.com port=5432 dbname=postgres user=yyyy password=zzzzzzz' PUBLICATION logical_mig01
+CREATE SUBSCRIPTION logical_sub01 CONNECTION 'host=pg13demo0000.postgres.database.azure.com port=5432 dbname=postgres user=yyyy password=zzzzzzz' PUBLICATION logical_mig01
 WITH (
 	copy_data = false,
 	create_slot = false,
@@ -151,4 +151,5 @@ Once both databases are synchronized (replication lag stabilizes near zero), you
 - 10.4 Connect the application to the new Azure Database for PostgreSQL instance.
 	> Recommendation: Utilize Virtual Endpoints or a CNAME DNS record for your database connection string. By simply pointing the endpoint/CNAME to the new server, you can switch your application stack without changing hundreds of individual configuration files, making the final cutover near-instantaneous.
  
+
 
